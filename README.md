@@ -47,7 +47,27 @@ cargo test   # runs the unit tests in src/query_builder.rs
 | CTEs | `with`, `with_recursive` |
 | Row locking | `for_update`, `for_share`, `skip_locked`, `no_wait` |
 
-Every method takes `self` by value and returns `Self`, so calls chain. `build()` consumes the builder and returns `Result<String, &'static str>`.
+Every method takes `&mut self` and returns `&mut Self`, so calls chain. `build()` borrows the builder and returns `Result<String, &'static str>`.
+
+### Adding clauses conditionally
+
+Keep the builder in a `mut` variable and call methods on it whenever you need to:
+
+```rust
+let mut query = QueryBuilder::new();
+query.from("users u");
+
+if only_active {
+  query.where_("u.active = true");
+}
+if let Some(role) = role {
+  query.where_(format!("u.role = {role}"));
+}
+
+let sql = query.build()?;
+```
+
+Create the builder with `QueryBuilder::new()` on its own line first. `let q = QueryBuilder::new().from("users");` doesn't compile, because `from` returns a borrow of a temporary value. A chain that ends in `.build()`, or one passed straight in as a subquery, works fine.
 
 ### Subqueries, CTEs and set operations
 

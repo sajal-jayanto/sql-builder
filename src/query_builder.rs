@@ -94,6 +94,12 @@ pub struct QueryBuilder {
   lock_wait: Option<LockWait>,
 }
 
+impl From<&mut QueryBuilder> for QueryBuilder {
+  fn from(query: &mut QueryBuilder) -> Self {
+    query.clone()
+  }
+}
+
 impl QueryBuilder {
   pub fn new() -> Self {
     Self::default()
@@ -101,7 +107,7 @@ impl QueryBuilder {
 
   // ---------- SELECT ----------
 
-  pub fn select<I, S>(mut self, columns: I) -> Self
+  pub fn select<I, S>(&mut self, columns: I) -> &mut Self
   where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -110,66 +116,66 @@ impl QueryBuilder {
     self
   }
 
-  pub fn distinct(mut self) -> Self {
+  pub fn distinct(&mut self) -> &mut Self {
     self.distinct = true;
     self
   }
 
   // ---------- FROM ----------
 
-  pub fn from(mut self, table: impl Into<String>) -> Self {
+  pub fn from(&mut self, table: impl Into<String>) -> &mut Self {
     self.from = Some(table.into());
     self
   }
 
   // ---------- JOINS ----------
 
-  fn join(mut self, kind: JoinKind, table: String, on: Option<String>) -> Self {
+  fn join(&mut self, kind: JoinKind, table: String, on: Option<String>) -> &mut Self {
     self.joins.push(Join { kind, table, on });
     self
   }
 
-  pub fn inner_join(self, table: impl Into<String>, on: impl Into<String>) -> Self {
+  pub fn inner_join(&mut self, table: impl Into<String>, on: impl Into<String>) -> &mut Self {
     self.join(JoinKind::Inner, table.into(), Some(on.into()))
   }
 
-  pub fn left_join(self, table: impl Into<String>, on: impl Into<String>) -> Self {
+  pub fn left_join(&mut self, table: impl Into<String>, on: impl Into<String>) -> &mut Self {
     self.join(JoinKind::Left, table.into(), Some(on.into()))
   }
 
-  pub fn right_join(self, table: impl Into<String>, on: impl Into<String>) -> Self {
+  pub fn right_join(&mut self, table: impl Into<String>, on: impl Into<String>) -> &mut Self {
     self.join(JoinKind::Right, table.into(), Some(on.into()))
   }
 
-  pub fn full_join(self, table: impl Into<String>, on: impl Into<String>) -> Self {
+  pub fn full_join(&mut self, table: impl Into<String>, on: impl Into<String>) -> &mut Self {
     self.join(JoinKind::Full, table.into(), Some(on.into()))
   }
 
-  pub fn cross_join(self, table: impl Into<String>) -> Self {
+  pub fn cross_join(&mut self, table: impl Into<String>) -> &mut Self {
     self.join(JoinKind::Cross, table.into(), None)
   }
 
   // ---------- WHERE ----------
   // `where` is a Rust keyword, hence the trailing underscore.
 
-  fn push_condition(mut self, connector: Connector, condition: Condition) -> Self {
+  fn push_condition(&mut self, connector: Connector, condition: Condition) -> &mut Self {
     self.conditions.push((connector, condition));
     self
   }
 
-  pub fn where_(self, condition: impl Into<String>) -> Self {
+  pub fn where_(&mut self, condition: impl Into<String>) -> &mut Self {
     self.push_condition(Connector::And, Condition::Raw(condition.into()))
   }
 
-  pub fn and_where(self, condition: impl Into<String>) -> Self {
+  pub fn and_where(&mut self, condition: impl Into<String>) -> &mut Self {
     self.push_condition(Connector::And, Condition::Raw(condition.into()))
   }
 
-  pub fn or_where(self, condition: impl Into<String>) -> Self {
+  pub fn or_where(&mut self, condition: impl Into<String>) -> &mut Self {
     self.push_condition(Connector::Or, Condition::Raw(condition.into()))
   }
 
-  pub fn where_in<I, S>(self, column: impl Into<String>, values: I) -> Self
+  pub fn where_in<I, S>(&mut self, column: impl Into<String>, values: I) -> &mut Self
   where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -184,7 +190,7 @@ impl QueryBuilder {
     self.and_where(condition)
   }
 
-  pub fn where_not_in<I, S>(self, column: impl Into<String>, values: I) -> Self
+  pub fn where_not_in<I, S>(&mut self, column: impl Into<String>, values: I) -> &mut Self
   where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -200,32 +206,32 @@ impl QueryBuilder {
   }
 
   pub fn where_between(
-    self,
+    &mut self,
     column: impl Into<String>,
     low: impl Into<String>,
     high: impl Into<String>,
-  ) -> Self {
+  ) -> &mut Self {
     let condition = format!("{} BETWEEN {} AND {}", column.into(), low.into(), high.into());
     self.and_where(condition)
   }
 
-  pub fn where_null(self, column: impl Into<String>) -> Self {
+  pub fn where_null(&mut self, column: impl Into<String>) -> &mut Self {
     let condition = format!("{} IS NULL", column.into());
     self.and_where(condition)
   }
 
-  pub fn where_not_null(self, column: impl Into<String>) -> Self {
+  pub fn where_not_null(&mut self, column: impl Into<String>) -> &mut Self {
     let condition = format!("{} IS NOT NULL", column.into());
     self.and_where(condition)
   }
 
-  pub fn where_exists(self, subquery: QueryBuilder) -> Self {
-    self.push_condition(Connector::And, Condition::Exists(Box::new(subquery)))
+  pub fn where_exists(&mut self, subquery: impl Into<QueryBuilder>) -> &mut Self {
+    self.push_condition(Connector::And, Condition::Exists(Box::new(subquery.into())))
   }
 
   // ---------- GROUP BY / HAVING ----------
 
-  pub fn group_by<I, S>(mut self, columns: I) -> Self
+  pub fn group_by<I, S>(&mut self, columns: I) -> &mut Self
   where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -234,24 +240,24 @@ impl QueryBuilder {
     self
   }
 
-  pub fn having(mut self, condition: impl Into<String>) -> Self {
+  pub fn having(&mut self, condition: impl Into<String>) -> &mut Self {
     self.having.push(condition.into());
     self
   }
 
   // ---------- ORDER BY / LIMIT / OFFSET ----------
 
-  pub fn order_by(mut self, column: impl Into<String>, order: Order) -> Self {
+  pub fn order_by(&mut self, column: impl Into<String>, order: Order) -> &mut Self {
     self.order_by.push((column.into(), order));
     self
   }
 
-  pub fn limit(mut self, limit: u64) -> Self {
+  pub fn limit(&mut self, limit: u64) -> &mut Self {
     self.limit = Some(limit);
     self
   }
 
-  pub fn offset(mut self, offset: u64) -> Self {
+  pub fn offset(&mut self, offset: u64) -> &mut Self {
     self.offset = Some(offset);
     self
   }
@@ -259,66 +265,66 @@ impl QueryBuilder {
   // ---------- SET OPERATIONS ----------
   // ORDER BY / LIMIT / OFFSET on the outer builder apply to the combined result.
 
-  fn set_op(mut self, op: SetOp, query: QueryBuilder) -> Self {
+  fn set_op(&mut self, op: SetOp, query: QueryBuilder) -> &mut Self {
     self.set_ops.push((op, query));
     self
   }
 
-  pub fn union(self, query: QueryBuilder) -> Self {
-    self.set_op(SetOp::Union, query)
+  pub fn union(&mut self, query: impl Into<QueryBuilder>) -> &mut Self {
+    self.set_op(SetOp::Union, query.into())
   }
 
-  pub fn union_all(self, query: QueryBuilder) -> Self {
-    self.set_op(SetOp::UnionAll, query)
+  pub fn union_all(&mut self, query: impl Into<QueryBuilder>) -> &mut Self {
+    self.set_op(SetOp::UnionAll, query.into())
   }
 
-  pub fn intersect(self, query: QueryBuilder) -> Self {
-    self.set_op(SetOp::Intersect, query)
+  pub fn intersect(&mut self, query: impl Into<QueryBuilder>) -> &mut Self {
+    self.set_op(SetOp::Intersect, query.into())
   }
 
-  pub fn except(self, query: QueryBuilder) -> Self {
-    self.set_op(SetOp::Except, query)
+  pub fn except(&mut self, query: impl Into<QueryBuilder>) -> &mut Self {
+    self.set_op(SetOp::Except, query.into())
   }
 
   // ---------- CTEs ----------
 
-  pub fn with(mut self, name: impl Into<String>, query: QueryBuilder) -> Self {
-    self.ctes.push((name.into(), query));
+  pub fn with(&mut self, name: impl Into<String>, query: impl Into<QueryBuilder>) -> &mut Self {
+    self.ctes.push((name.into(), query.into()));
     self
   }
 
   // SQL marks the whole WITH clause as RECURSIVE, not individual CTEs.
-  pub fn with_recursive(mut self, name: impl Into<String>, query: QueryBuilder) -> Self {
+  pub fn with_recursive(&mut self, name: impl Into<String>, query: impl Into<QueryBuilder>) -> &mut Self {
     self.recursive = true;
-    self.ctes.push((name.into(), query));
+    self.ctes.push((name.into(), query.into()));
     self
   }
 
   // ---------- LOCKING ----------
 
-  pub fn for_update(mut self) -> Self {
+  pub fn for_update(&mut self) -> &mut Self {
     self.lock = Some(LockMode::Update);
     self
   }
 
-  pub fn for_share(mut self) -> Self {
+  pub fn for_share(&mut self) -> &mut Self {
     self.lock = Some(LockMode::Share);
     self
   }
 
-  pub fn skip_locked(mut self) -> Self {
+  pub fn skip_locked(&mut self) -> &mut Self {
     self.lock_wait = Some(LockWait::SkipLocked);
     self
   }
 
-  pub fn no_wait(mut self) -> Self {
+  pub fn no_wait(&mut self) -> &mut Self {
     self.lock_wait = Some(LockWait::NoWait);
     self
   }
 
   // ---------- BUILD ----------
 
-  pub fn build(self) -> Result<String, &'static str> {
+  pub fn build(&self) -> Result<String, &'static str> {
     if self.lock_wait.is_some() && self.lock.is_none() {
       return Err("skip_locked/no_wait requires for_update or for_share");
     }
@@ -331,7 +337,7 @@ impl QueryBuilder {
     if !self.ctes.is_empty() {
       sql.push_str(if self.recursive { "WITH RECURSIVE " } else { "WITH " });
       let mut ctes = Vec::with_capacity(self.ctes.len());
-      for (name, query) in self.ctes {
+      for (name, query) in &self.ctes {
         ctes.push(format!("{} AS ({})", name, query.build()?));
       }
       sql.push_str(&ctes.join(", "));
@@ -348,30 +354,30 @@ impl QueryBuilder {
       sql.push_str(&self.columns.join(", "));
     }
 
-    if let Some(table) = self.from {
+    if let Some(table) = &self.from {
       sql.push_str(" FROM ");
-      sql.push_str(&table);
+      sql.push_str(table);
     }
 
-    for join in self.joins {
+    for join in &self.joins {
       sql.push(' ');
       sql.push_str(join.kind.keyword());
       sql.push(' ');
       sql.push_str(&join.table);
-      if let Some(on) = join.on {
+      if let Some(on) = &join.on {
         sql.push_str(" ON ");
-        sql.push_str(&on);
+        sql.push_str(on);
       }
     }
 
-    for (i, (connector, condition)) in self.conditions.into_iter().enumerate() {
+    for (i, (connector, condition)) in self.conditions.iter().enumerate() {
       sql.push_str(match (i, connector) {
         (0, _) => " WHERE ",
         (_, Connector::And) => " AND ",
         (_, Connector::Or) => " OR ",
       });
       match condition {
-        Condition::Raw(expr) => sql.push_str(&expr),
+        Condition::Raw(expr) => sql.push_str(expr),
         Condition::Exists(subquery) => {
           sql.push_str("EXISTS (");
           sql.push_str(&subquery.build()?);
@@ -390,7 +396,7 @@ impl QueryBuilder {
       sql.push_str(&self.having.join(" AND "));
     }
 
-    for (op, query) in self.set_ops {
+    for (op, query) in &self.set_ops {
       if !query.order_by.is_empty() || query.limit.is_some() || query.offset.is_some() {
         return Err("queries combined with union/intersect/except cannot have order_by/limit/offset");
       }
@@ -403,7 +409,7 @@ impl QueryBuilder {
     if !self.order_by.is_empty() {
       let columns: Vec<String> = self
         .order_by
-        .into_iter()
+        .iter()
         .map(|(column, order)| match order {
           Order::Asc => format!("{column} ASC"),
           Order::Desc => format!("{column} DESC"),
@@ -572,6 +578,24 @@ mod tests {
 
     let sql = QueryBuilder::new().from("jobs").for_share().no_wait().build().unwrap();
     assert_eq!(sql, "SELECT * FROM jobs FOR SHARE NOWAIT");
+  }
+
+  #[test]
+  fn conditional_where() {
+    let mut query = QueryBuilder::new();
+    query.from("users");
+
+    let active_only = true;
+    let role: Option<&str> = None;
+    if active_only {
+      query.where_("active = true");
+    }
+    if let Some(role) = role {
+      query.where_(format!("role = {role}"));
+    }
+    query.limit(5);
+
+    assert_eq!(query.build().unwrap(), "SELECT * FROM users WHERE active = true LIMIT 5");
   }
 
   #[test]
